@@ -1,0 +1,98 @@
+version: "3.9"
+services:
+  wcnet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wcsng-36.nrp-nautilus.io/improved-wavecnet:${ImpWCNet_VERSION}
+    container_name: ImpWaveCNet
+    ipc: "host"
+    volumes:
+      - ".:/home/torch/ImpWCNet:rw"
+    deploy:
+     resources:
+       reservations:
+         devices:
+           - driver: nvidia
+             count: "all"
+             capabilities: [gpu]
+    working_dir: "/home/torch/ImpWCNet"
+    command: [
+      "python3", "main.py",
+                      "--seed=202211",
+                      "--num_epoch=25",
+                      "--batch_size=32",
+                      "--lr0=0.01",
+                      "--lr_a=0.001",
+                      "--lr_b=0.75",
+                      "--momentum=0.9",
+                      "--w_decay=5e-4",
+                      "--lbl_sm=0.01",
+                      "--model=resnet-50_dwt/haar/LL",
+                      "--wavelet=haar",
+                      "--dataset=cifar10",
+                      "--num_workers=2",
+                      "--task=feature_evolve",
+                      "--datadir=data/",
+                      "--logdir=log/",
+                      "--ptdir=pretrain/",
+                      "--log_filename=train",
+                      "--init_weights=0",
+                      "--resume_trian=0",
+                      "--exp_label=Effect_of_Wavelet",
+                      "--gpu=0"
+      ]
+    
+    # command: ["tail", "-f", "/dev/null"]
+
+  wcnet-devel:
+    build:
+      context: .
+      dockerfile: wcnet-devel.dockerfile
+      args:
+        UID: $UID
+        GID: $GID
+    image: improved-wavecnet:${USER}
+    container_name: ImpWaveCNet_${USER}
+    ipc: "host"
+    user: $UID:$GID
+    volumes:
+      - ".:/home/torch/ImpWCNet:rw"
+      - "/mnt/hddvd0/skadaveru/UCSD/Improved-WaveCNet/pretrain:/home/torch/ImpWCNet/pretrain:rw"
+      - "/mnt/hddvd0/skadaveru/UCSD/Improved-WaveCNet/data:/home/torch/ImpWCNet/data:rw"
+      - "/mnt/hddvd0/skadaveru/UCSD/Improved-WaveCNet/log:/home/torch/ImpWCNet/log:rw"
+      - "vscode-config:/home/torch/.vscode-server:rw"
+    deploy:
+     resources:
+       reservations:
+         devices:
+           - driver: nvidia
+             count: "all"
+             capabilities: [gpu]
+    working_dir: "/home/torch/ImpWCNet"
+    # command: ["jupyter", "notebook"]
+    command: ["tail", "-f", "/dev/null"]
+  
+  tensorboard:
+    image: nvcr.io/nvidia/tensorflow:22.07-tf2-py3
+    container_name: tensorboard-wcnet_${USER}
+    ipc: "host"
+    user: $UID:$GID
+    network_mode: "host"
+    volumes:
+      - "./log:/var/ImpWCNet/log:rw"
+      # - "vscode-config:/home/torch/.vscode-server:rw"
+    deploy:
+     resources:
+       reservations:
+         devices:
+           - driver: nvidia
+             count: "all"
+             capabilities: [gpu]
+    working_dir: "/var/ImpWCNet/"
+    command: "tensorboard --bind_all --logdir=log/ActivationEvol/imagenet/resnet-50/tb_train"
+    # command: ["tail", "-f", "/dev/null"]
+
+volumes:
+  vscode-config:
+    driver: local

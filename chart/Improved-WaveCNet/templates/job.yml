@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ required "Missing a required value job.name" .Values.job.name | lower }}
+  {{- if .Values.job.description }}
+  annotations:
+    jobDescription: {{ .Values.job.description | quote }}
+  {{- end }}
+  labels:
+    {{- include "ImpWCNet.labels" . | nindent 4 }}
+spec: 
+  template:
+    spec:
+      containers:
+      - image: {{ .Values.image.registry }}/improved-wavecnet:{{ .Chart.AppVersion }}
+        name: impwavecnet
+        imagePullPolicy: Always
+        workingDir: /home/torch/ImpWCNet
+        # command: ["pwd"]
+        command: ["python3"]
+        args: ["main.py", 
+                  "--seed={{ .Values.ImpWCNet.seed }}",
+                  "--num_epoch={{ .Values.ImpWCNet.num_epoch }}",
+                  "--batch_size={{ .Values.ImpWCNet.batch_size }}",
+                  "--lr0={{ .Values.ImpWCNet.lr0 }}",
+                  "--lr_a={{ .Values.ImpWCNet.lr_a }}",
+                  "--lr_b={{ .Values.ImpWCNet.lr_b }}",
+                  "--momentum={{ .Values.ImpWCNet.momentum }}",
+                  "--w_decay={{ .Values.ImpWCNet.w_decay }}",
+                  "--lbl_sm={{ .Values.ImpWCNet.lbl_sm }}",
+                  "--model={{ .Values.ImpWCNet.model }}",
+                  "--wavelet={{ .Values.ImpWCNet.wavelet }}",
+                  "--dataset={{ .Values.ImpWCNet.dataset }}",
+                  "--num_workers={{ .Values.ImpWCNet.num_workers }}",
+                  "--task={{ .Values.ImpWCNet.task }}",
+                  "--datadir={{ .Values.ImpWCNet.datadir }}",
+                  "--logdir={{ .Values.ImpWCNet.logdir }}",
+                  "--ptdir={{ .Values.ImpWCNet.ptdir }}",
+                  "--log_filename={{ .Values.ImpWCNet.log_filename }}",
+                  "--init_weights={{ .Values.ImpWCNet.init_weights }}",
+                  "--resume_train={{ .Values.ImpWCNet.resume_train }}",
+                  "--exp_label={{ .Values.ImpWCNet.exp_label }}",
+                  "--gpu={{ .Values.ImpWCNet.gpu }}"
+            ]
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+        - mountPath: /home/torch/ImpWCNet/data
+          name: impwcnet-dataset
+        - mountPath: /home/torch/ImpWCNet/log
+          name: impwcnet-result
+        - mountPath: /home/torch/ImpWCNet/pretrain
+          name: impwcnet-pretrain
+      {{- if .Values.requiredGPU }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                  {{- toYaml .Values.requiredGPU | nindent 16 }}
+      {{- end}}
+      restartPolicy: {{ .Values.job.restartPolicy }}
+
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: {{ .Values.resources.requests.memory }}
+      - name: impwcnet-dataset
+        persistentVolumeClaim:
+          claimName: {{ .Values.storage.data }}
+      - name: impwcnet-result
+        persistentVolumeClaim:
+          claimName: {{ .Values.storage.results }}
+      - name: impwcnet-pretrain
+        persistentVolumeClaim:
+          claimName: {{ .Values.storage.pretain }}

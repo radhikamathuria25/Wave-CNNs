@@ -1,2 +1,2 @@
-# Wave-CNNs
-Analysis of Wavelet-integrated CNNs
+# Investigating WaveCNet  
+Testing claims of WaveCNet 
